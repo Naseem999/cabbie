@@ -5,16 +5,18 @@ import com.app.cabbie.dto.UserRegisterDTO;
 import com.app.cabbie.dto.UserResiterationResponseDTO;
 import com.app.cabbie.enums.RoleType;
 import com.app.cabbie.exceptions.UserNotFoundException;
+import com.app.cabbie.model.Driver;
 import com.app.cabbie.model.User;
+import com.app.cabbie.repository.DriverRepository;
 import com.app.cabbie.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 
 @Service
 public class UserService {
@@ -22,12 +24,16 @@ public class UserService {
     private final ModelMapper modelMapper;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
+    private final DriverService driverService;
 
-    public UserService(ModelMapper modelMapper, UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager){
+     @Autowired
+
+    public UserService(ModelMapper modelMapper, UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, DriverService driverService){
         this.userRepository=userRepository;
         this.modelMapper=modelMapper;
         this.passwordEncoder=passwordEncoder;
         this.authenticationManager=authenticationManager;
+        this.driverService=driverService;
     }
 
     @Transactional
@@ -48,7 +54,12 @@ public class UserService {
                 .role(userRegisterDTO.getRole())
                 .build();
 
-        return  modelMapper.map(userRepository.save(newUser),UserResiterationResponseDTO.class);
+        User savedUser=userRepository.save(newUser);
+
+        if(newUser.getRole()==RoleType.DRIVER && null != savedUser){
+              driverService.createNewDriver(savedUser.getId());
+        }
+        return  modelMapper.map(savedUser,UserResiterationResponseDTO.class);
     }
 
     public User userLogin(UserLoginDTO userLoginDTO){
