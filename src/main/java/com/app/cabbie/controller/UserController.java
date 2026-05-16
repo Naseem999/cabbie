@@ -3,6 +3,7 @@ package com.app.cabbie.controller;
 import com.app.cabbie.dto.UserLoginDTO;
 import com.app.cabbie.dto.UserRegisterDTO;
 import com.app.cabbie.dto.UserResiterationResponseDTO;
+import com.app.cabbie.dto.UserUpdateDTO;
 import com.app.cabbie.model.User;
 import com.app.cabbie.service.JWTService;
 import com.app.cabbie.service.UserService;
@@ -49,6 +50,15 @@ public class UserController {
     public ResponseEntity<User> deleteUserById(@PathVariable Long id){
         User user=userService.deleteUserById(id);
         return ResponseEntity.status(HttpStatus.OK).body(user);
+    }
+
+
+
+    @PutMapping("/{id}")
+    @PreAuthorize("#id==principal.id or hasRole('ADMIN')")
+    public ResponseEntity<User> updateUserProfile(@PathVariable Long id, @RequestBody UserUpdateDTO userUpdateDTO){
+        User updatedUser=userService.updateUser(id,userUpdateDTO);
+        return ResponseEntity.status(HttpStatus.OK).body(updatedUser);
     }
 
 

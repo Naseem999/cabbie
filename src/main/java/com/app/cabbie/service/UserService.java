@@ -3,6 +3,7 @@ package com.app.cabbie.service;
 import com.app.cabbie.dto.UserLoginDTO;
 import com.app.cabbie.dto.UserRegisterDTO;
 import com.app.cabbie.dto.UserResiterationResponseDTO;
+import com.app.cabbie.dto.UserUpdateDTO;
 import com.app.cabbie.enums.RoleType;
 import com.app.cabbie.exceptions.UserNotFoundException;
 import com.app.cabbie.model.Driver;
@@ -12,6 +13,7 @@ import com.app.cabbie.repository.UserRepository;
 import jakarta.transaction.Transactional;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -79,25 +81,21 @@ public class UserService {
     }
 
     @Transactional
-    public UserResiterationResponseDTO updateUser(Long id, UserRegisterDTO userRegisterDTO) {
+    public User updateUser(Long id, UserUpdateDTO userUpdateDTO) {
 
-        User newUpdateUser=userRepository.findById(id).orElseThrow(()-> new UserNotFoundException("User Not Found With Id:"+ id));
+         User newUpdateUser=userRepository.findById(id).orElseThrow(()-> new UserNotFoundException("User Not Found With Id:"+ id));
 
-      if(userRegisterDTO.getName()!=null){
-          newUpdateUser.setName(userRegisterDTO.getName());
+      if(null != userUpdateDTO.getName()  && !userUpdateDTO.getName().isEmpty()){
+          newUpdateUser.setName(userUpdateDTO.getName());
       }
-      if(userRegisterDTO.getPhone()!=null){
-          newUpdateUser.setPhone(userRegisterDTO.getPhone());
+      if(null != userUpdateDTO.getPhone() && !userUpdateDTO.getPhone().isEmpty()){
+          newUpdateUser.setPhone(userUpdateDTO.getPhone());
       }
-      if(userRegisterDTO.getPassword()!=null){
-         newUpdateUser.setPassword(passwordEncoder.encode(userRegisterDTO.getPassword()));
-      }
-
-      if(!userRegisterDTO.getRole().name().isEmpty()){
-          newUpdateUser.setRole(userRegisterDTO.getRole());
+      if(null != userUpdateDTO.getPassword() && !userUpdateDTO.getPassword().isEmpty()){
+         newUpdateUser.setPassword(passwordEncoder.encode(userUpdateDTO.getPassword()));
       }
 
-      return  modelMapper.map(userRepository.save(newUpdateUser),UserResiterationResponseDTO.class);
+      return  userRepository.save(newUpdateUser);
     }
 
 
