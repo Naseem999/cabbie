@@ -1,6 +1,7 @@
 package com.app.cabbie.controller;
 
-import com.app.cabbie.dto.VehicalDTO;
+import com.app.cabbie.dto.LocationDTO;
+import com.app.cabbie.dto.VehicleDTO;
 import com.app.cabbie.enums.DriverStatus;
 import com.app.cabbie.model.Driver;
 import com.app.cabbie.service.DriverService;
@@ -18,17 +19,25 @@ public class DriverController {
     DriverService driverService;
 
     @PutMapping("/{id}/vehicle")
-    @PreAuthorize("hasRole('DRIVER')")
-    ResponseEntity<Driver> updateVehicalDetails(@PathVariable Long id, @RequestBody VehicalDTO vehicalDTO){
-        Driver updatedDriverDetails=driverService.updateVehicalDetails(id,vehicalDTO);
+    @PreAuthorize("#id==principal.id and hasRole('DRIVER') ")
+    ResponseEntity<Driver> updateVehicleDetails(@PathVariable Long id, @RequestBody VehicleDTO vehicleDTO){
+        Driver updatedDriverDetails=driverService.updateVehicleDetails(id, vehicleDTO);
         return new  ResponseEntity<>(updatedDriverDetails, HttpStatus.OK);
     }
 
     @PutMapping("/{id}/status")
-    @PreAuthorize("hasRole('DRIVER')")
-    ResponseEntity<Driver> updateVehicalDetails(@PathVariable Long id, @RequestBody DriverStatus status){
+    @PreAuthorize("#id==principal.id and hasRole('DRIVER') ")
+    ResponseEntity<Driver> updateDriverStatus(@PathVariable Long id, @RequestBody DriverStatus status){
         Driver updatedDriverDetails=driverService.updateDriverStatus(id,status);
         return new  ResponseEntity<>(updatedDriverDetails, HttpStatus.OK);
+    }
+
+
+    @PutMapping("/{driverId}/location")
+    @PreAuthorize("#driverId==principal.id and hasRole('DRIVER')")
+    public ResponseEntity<Driver> updateLocation(@PathVariable Long driverId,
+                                            @RequestBody LocationDTO location) {
+        return ResponseEntity.ok(driverService.updateDriverLocation(driverId,location));
     }
 
 

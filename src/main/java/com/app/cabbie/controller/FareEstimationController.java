@@ -19,12 +19,14 @@ public class FareEstimationController {
     DynamicFareCalculationService fareCalculationService;
     @GetMapping("/estimate")
     @PreAuthorize("hasAnyRole('ADMIN','PASSENGER')")
-    ResponseEntity<Map<String, Object>> estimate(@RequestParam double pickupLat,
+    ResponseEntity<Double> estimate(@RequestParam double pickupLat,
                                                  @RequestParam double pickupLng,
                                                  @RequestParam double dropLat,
                                                  @RequestParam double dropLng,
                                                  @RequestParam String rideType){
-        Map<String, Object> fareBreakup= fareCalculationService.calculateFare(pickupLat,pickupLng,dropLat,dropLng,RideType.valueOf(rideType.toUpperCase()));
+//        Map<String, Object> fareBreakup= fareCalculationService.calculateFare(pickupLat,pickupLng,dropLat,dropLng,RideType.valueOf(rideType.toUpperCase()));
+
+        Double fareBreakup= fareCalculationService.calculateFare(pickupLat,pickupLng,dropLat,dropLng,RideType.valueOf(rideType.toUpperCase()));
         return new ResponseEntity<>(fareBreakup, HttpStatus.OK);
 
     }

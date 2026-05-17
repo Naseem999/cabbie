@@ -1,6 +1,7 @@
 package com.app.cabbie.service;
 
 import com.app.cabbie.enums.RideType;
+import org.modelmapper.internal.bytebuddy.implementation.bytecode.Throw;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -19,7 +20,7 @@ public class DynamicFareCalculationService {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
 
-    public Map<String, Object> calculateFare(double pickupLat, double pickupLng,double dropLat,double dropLng, RideType rideType){
+    public Double calculateFare(double pickupLat, double pickupLng,double dropLat,double dropLng, RideType rideType){
         String url = String.format(
                 "https://maps.googleapis.com/maps/api/distancematrix/json" +
                         "?origins=%f,%f&destinations=%f,%f&units=metric&key=%s",
@@ -43,15 +44,18 @@ public class DynamicFareCalculationService {
             fare = Math.max(fare, rideType.minimumFare);
 
             // Step 3: Return response
-            return Map.of(
-                    "rideType",     rideType,
-                    "distanceKm",      Math.round(distanceKm * 100.0) / 100.0,
-                    "durationMinutes", Math.round(durationMinutes * 100.0) / 100.0,
-                    "totalFare",       Math.round(fare * 100.0) / 100.0
-            );
+//            return Map.of(
+//                    "rideType",     rideType,
+//                    "distanceKm",      Math.round(distanceKm * 100.0) / 100.0,
+//                    "durationMinutes", Math.round(durationMinutes * 100.0) / 100.0,
+//                    "totalFare",       Math.round(fare * 100.0) / 100.0
+//            );
+
+            return Math.round(fare * 100.0) / 100.0;
 
         } catch (Exception e) {
-            return Map.of("error", "Failed to calculate fare: " + e.getMessage());
+//            return Map.of("error", "Failed to calculate fare: " + e.getMessage());
+            throw new RuntimeException("Exception while calculating fare:"+ e);
         }
     }
 

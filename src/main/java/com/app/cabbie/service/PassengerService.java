@@ -12,8 +12,6 @@ public class PassengerService {
     @Autowired
     RidesRepository rideRepository;
 
-//    public Ride BookRide(RideRequestDTO rideRequestDTO){
-//
-//    }
+
 
 }

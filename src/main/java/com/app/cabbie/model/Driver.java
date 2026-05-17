@@ -37,6 +37,12 @@ public class Driver {
     @Column(name = "status", length = 255)
     private DriverStatus driverStatus;
 
+    @Column(name = "current_location_lat")
+    private Double currentLocationLat;
+
+    @Column(name = "current_location_lng")
+    private Double currentLocationLng;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

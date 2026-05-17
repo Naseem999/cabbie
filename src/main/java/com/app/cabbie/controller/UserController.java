@@ -38,21 +38,18 @@ public class UserController {
         return new ResponseEntity<>(jwtToken, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasAnyRole('PASSENGER','DRIVER','ADMIN')")
     @GetMapping("/{id}")
+    @PreAuthorize("#id==principal.id or hasRole('ADMIN')")
     public ResponseEntity<User> getUserById(@PathVariable Long id){
         User user=userService.getUserById(id);
         return ResponseEntity.status(HttpStatus.OK).body(user);
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<User> deleteUserById(@PathVariable Long id){
         User user=userService.deleteUserById(id);
         return ResponseEntity.status(HttpStatus.OK).body(user);
     }
-
-
 
     @PutMapping("/{id}")
     @PreAuthorize("#id==principal.id or hasRole('ADMIN')")

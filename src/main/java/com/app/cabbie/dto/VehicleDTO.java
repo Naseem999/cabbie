@@ -3,7 +3,7 @@ package com.app.cabbie.dto;
 import lombok.Data;
 
 @Data
-public class VehicalDTO {
+public class VehicleDTO {
 
     private String vechicalNumber;
     private String vechicalModel;
