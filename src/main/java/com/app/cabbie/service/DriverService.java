@@ -12,8 +12,10 @@ import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-// Manages driver registration, vehicle details, status updates, and location tracking.
-// Handles all driver-related business logic for the Cabbie rideshare application.
+/**
+ * Manages driver profiles, vehicle info and availability for the application.
+ * Provides simple methods to create drivers, update vehicle info and location.
+ */
 @Service
 public class DriverService {
 

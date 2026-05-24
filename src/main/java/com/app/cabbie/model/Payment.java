@@ -3,6 +3,10 @@ package com.app.cabbie.model;
 import com.app.cabbie.enums.PaymentMethod;
 import com.app.cabbie.enums.PaymentStatus;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -10,6 +14,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "payments")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class Payment {
 
     @Id
@@ -30,6 +38,12 @@ public class Payment {
     @Enumerated(EnumType.STRING)
     @Column(name = "payment_method", length = 255)
     private PaymentMethod paymentMethod;
+
+    @Column(name = "payment_gateway_order_id", columnDefinition = "VARCHAR(255)")
+    private String paymentGatewayOrderId;
+
+    @Column(name = "payment_gateway_payment_id", columnDefinition = "VARCHAR(255)")
+    private String paymentGatewayPaymentId;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

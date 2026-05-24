@@ -1,8 +1,11 @@
 package com.app.cabbie.configuration;
 
 import com.app.cabbie.repository.UserRepository;
+import com.razorpay.RazorpayClient;
+import com.razorpay.RazorpayException;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,6 +21,13 @@ public class AppConfig {
 
     @Autowired
     UserRepository userRepository;
+
+    @Value("${razorpay.key.id}")
+    private String keyId;
+
+    @Value("${razorpay.key.secret}")
+    private String keySecret;
+
 
     @Bean
     public ModelMapper modelMapper(){
@@ -47,6 +57,12 @@ public class AppConfig {
         DaoAuthenticationProvider daoAuthenticationProvider=new DaoAuthenticationProvider(userDetailsService());
         daoAuthenticationProvider.setPasswordEncoder(passwordEncoder());
         return daoAuthenticationProvider;
+    }
+
+
+    @Bean
+    public RazorpayClient  razorpayClient() throws RazorpayException {
+        return new RazorpayClient(keyId, keySecret);
     }
 
 

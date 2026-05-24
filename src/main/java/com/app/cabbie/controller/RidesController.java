@@ -12,8 +12,10 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-// REST API endpoints for managing ride requests, status updates, and ride history.
-// Handles ride creation, acceptance, cancellation, and retrieval with role-based access control.
+/**
+ * REST endpoints for creating, managing and retrieving rides.
+ * Secured with role-based access control for passengers, drivers and admins.
+ */
 @RestController
 @RequestMapping("/api/rides")
 public class RidesController {

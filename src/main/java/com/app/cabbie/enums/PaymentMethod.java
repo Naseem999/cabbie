@@ -5,6 +5,7 @@ public enum PaymentMethod {
     CREDIT_CARD,
     UPI,
     WALLET,
-    MOCK
+    MOCK,
+    NET_BANKING
 
 }

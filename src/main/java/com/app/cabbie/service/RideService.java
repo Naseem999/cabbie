@@ -24,7 +24,10 @@ import org.springframework.web.client.RestTemplate;
 import java.util.List;
 import java.util.stream.Collectors;
 
-// Handles ride requests, driver assignments, and ride management
+/**
+ * RideService manages ride requests, assignment and status updates.
+ * Integrates fare calculation and driver selection using Google Maps APIs.
+ */
 @Service
 public class RideService {
 
@@ -49,13 +52,11 @@ public class RideService {
     // Create a new ride request from passenger
     @Transactional
     public Ride requestRide(RideRequestDTO rideRequestDTO){
-        User passesnger=userRepository.findById(rideRequestDTO.getUserId()).orElseThrow(()-> new UserNotFoundException("User not Found with Id:"+ rideRequestDTO.getUserId()));
+        User passenger = userRepository.findById(rideRequestDTO.getUserId())
+                .orElseThrow(() -> new UserNotFoundException("User not Found with Id:" + rideRequestDTO.getUserId()));
 
-//        Driver nearestDriver=this.assignRideToNearestDriver(rideRequestDTO.getPickupLocationDTO());
-
-        Ride newRide=Ride.builder()
-                .passengerId(passesnger)
-//                .driverId(nearestDriver)
+        Ride newRide = Ride.builder()
+                .passengerId(passenger)
                 .pickupLocation(rideRequestDTO.getPickupLocation())
                 .dropLocation(rideRequestDTO.getDropLocation())
                 .rideType(rideRequestDTO.getRideType())
@@ -70,17 +71,16 @@ public class RideService {
                 .build();
 
         return ridesRepository.save(newRide);
-
     }
 
     // Find and assign ride to the nearest available driver
     @Transactional
-    private Driver assignRideToNearestDriver(LocationDTO locationDTO){
+    public Driver assignRideToNearestDriver(LocationDTO locationDTO){
         List<Driver> drivers = driverRepository.findByDriverStatus(DriverStatus.AVAILABLE);
         if (drivers.isEmpty()) throw new RuntimeException("No drivers available");
 
-        String destinations=drivers.stream()
-                .map(d-> d.getCurrentLocationLat()+","+d.getCurrentLocationLng())
+        String destinations = drivers.stream()
+                .map(d -> d.getCurrentLocationLat() + "," + d.getCurrentLocationLng())
                 .collect(Collectors.joining("|"));
 
         String origin = locationDTO.getLatitude() + "," + locationDTO.getLongitude();
@@ -92,15 +92,13 @@ public class RideService {
                 + "&key=" + apiKey);
 
         String response = restTemplate.getForObject(url, String.class);
-        JsonNode root = null;
+        JsonNode root;
         try {
             root = objectMapper.readTree(response);
         } catch (JsonProcessingException e) {
             throw new RuntimeException(e);
         }
 
-
-        //  Loop through elements, find Shortest duration
         JsonNode elements = root.path("rows").get(0).path("elements");
 
         long minDuration = Long.MAX_VALUE;
@@ -116,64 +114,64 @@ public class RideService {
                 }
             }
         }
-        return  nearest;
+        return nearest;
     }
 
-    // Accept a ride request and update driver status
+    // Driver accepts a ride request and update driver status
     @Transactional
     public Ride acceptRideRequest(Long rideId, String driverEmail){
-        Ride ride=ridesRepository.findById(rideId).orElseThrow(()-> new RuntimeException("Ride Not Found"));
-        Driver driver= ride.getDriverId();
+        Ride ride = ridesRepository.findById(rideId).orElseThrow(() -> new RuntimeException("Ride Not Found"));
+        Driver driver = ride.getDriverId();
 
-        if(!driver.getUser().getEmail().equals(driverEmail)){
-            throw new RuntimeException("Access Denied..........");
+        if (driver == null || !driver.getUser().getEmail().equals(driverEmail)){
+            throw new RuntimeException("Access Denied");
         }
 
         ride.setRideStatus(RideStatus.ACCEPTED);
         driver.setDriverStatus(DriverStatus.BUSY);
 
         driverRepository.save(driver);
-        return  ridesRepository.save(ride);
+        return ridesRepository.save(ride);
     }
 
-
-    // Update ride status (REQUESTED, ACCEPTED, IN_PROGRESS, COMPLETED, CANCELED)
+    // Update ride status
     @Transactional
     public Ride updateRideStatus(Long rideId, RideStatus status){
-        Ride ride=ridesRepository.findById(rideId).orElseThrow(()-> new RuntimeException("Ride Not Found"));
+        Ride ride = ridesRepository.findById(rideId).orElseThrow(() -> new RuntimeException("Ride Not Found"));
         ride.setRideStatus(status);
         return ridesRepository.save(ride);
     }
 
-
-    // Cancel a ride and set status to CANCELED
+    // Cancel a ride
     @Transactional
     public Ride cancelRide(Long id){
-      Ride ride= ridesRepository.findById(id).orElseThrow(()-> new RuntimeException("Ride not found."));
-      ride.setRideStatus(RideStatus.CANCELED);
-      return ridesRepository.save(ride);
+        Ride ride = ridesRepository.findById(id).orElseThrow(() -> new RuntimeException("Ride not found."));
+        ride.setRideStatus(RideStatus.CANCELED);
+        return ridesRepository.save(ride);
     }
 
-    // Get ride details by ride ID
+    // Get ride details by id with simple authorization check
     public Ride getRideDetailsById(Long id, Authentication authentication){
-       Ride ride=ridesRepository.findById(id).orElseThrow(()-> new RuntimeException("Ride not found."));
-        if(ride.getDriverId().getUser().getEmail().equals(authentication.getName()) || ride.getPassengerId().getEmail().equals(authentication.getName()) || authentication.getAuthorities().equals("ROLE_ADMIN")){
+        Ride ride = ridesRepository.findById(id).orElseThrow(() -> new RuntimeException("Ride not found."));
+        boolean isDriver = ride.getDriverId() != null && ride.getDriverId().getUser().getEmail().equals(authentication.getName());
+        boolean isPassenger = ride.getPassengerId() != null && ride.getPassengerId().getEmail().equals(authentication.getName());
+        boolean isAdmin = authentication.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        if (isDriver || isPassenger || isAdmin) {
             return ride;
-        }else{
+        } else {
             throw new RuntimeException("Access Denied.");
         }
     }
 
-    // Get all rides for a specific user
+    // Get rides for a specific passenger
     public List<Ride> getRidesDetailsByUserId(Long userId){
-        return ridesRepository.findByPassengerId(userId).orElseThrow(()-> new RuntimeException("NO Ride Found for UserId:"+userId));
+        return ridesRepository.findByPassengerId(userId).orElseThrow(() -> new RuntimeException("NO Ride Found for UserId:" + userId));
     }
 
     // Get all rides
     public List<Ride> getAllRides(){
         return ridesRepository.findAll();
     }
-
 
 
 }

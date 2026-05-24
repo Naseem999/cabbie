@@ -1,15 +1,16 @@
 package com.app.cabbie.service;
 
 import com.app.cabbie.enums.RideType;
-import org.modelmapper.internal.bytebuddy.implementation.bytecode.Throw;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.util.Map;
-
+/**
+ * DynamicFareCalculationService computes fare based on distance and duration.
+ * Calls Google Maps Distance Matrix API to obtain distance and duration values.
+ */
 @Service
 public class DynamicFareCalculationService {
 
