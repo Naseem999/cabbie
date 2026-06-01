@@ -28,6 +28,8 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     @Query(value ="Select * from payments p join rides r on p.rideId=r.id and r.driver_id = :driverId;", nativeQuery = true)
     List<Payment> getPaymentDetailsFromDriverId(@Param("driverId") Long driverId);
 
+    Boolean existsByPaymentGatewayPaymentId(String paymentId);
+
 
 
 

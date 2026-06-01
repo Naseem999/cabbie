@@ -13,6 +13,8 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -35,7 +37,7 @@ public class PaymentService {
     private String keySecret;
 
     @Autowired
-    private  RazorpayClient razorpayClient;
+    private RazorpayClient razorpayClient;
 
     @Autowired
     RidesRepository ridesRepository;
@@ -43,20 +45,20 @@ public class PaymentService {
     @Autowired
     PaymentRepository paymentRepository;
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
+    public Map<String, Object> createOrder(Long rideId, BigDecimal amount) throws RazorpayException {
 
-    public Map<String, Object> createOrder(Long rideId, BigDecimal amount)throws RazorpayException {
-
-        int paise= amount.multiply(BigDecimal.valueOf(100)).intValue();
+        int paise = amount.multiply(BigDecimal.valueOf(100)).intValue();
 
         JSONObject options = new JSONObject();
-        options.put("amount",paise);
-        options.put("currency","INR");
-        options.put("receipt","ride_"+rideId);
+        options.put("amount", paise);
+        options.put("currency", "INR");
+        options.put("receipt", "ride_" + rideId);
 
-        Order rzpOrder=razorpayClient.orders.create(options);
-        Ride ride=ridesRepository.findById(rideId).orElseThrow(()-> new RuntimeException("Ride Not Found"));
-        Payment payment= Payment.builder()
+        Order rzpOrder = razorpayClient.orders.create(options);
+        Ride ride = ridesRepository.findById(rideId).orElseThrow(() -> new RuntimeException("Ride Not Found"));
+        Payment payment = Payment.builder()
                 .rideId(ride)
                 .paymentStatus(PaymentStatus.UNPAID)
                 .amount(amount.doubleValue())
@@ -66,25 +68,25 @@ public class PaymentService {
         paymentRepository.save(payment);
 
         Map<String, Object> response = new HashMap<>();
-        response.put("orderId",  rzpOrder.get("id"));
-        response.put("amount",   paise);
+        response.put("orderId", rzpOrder.get("id"));
+        response.put("amount", paise);
         response.put("currency", "INR");
-        response.put("keyId",    keyId);
+        response.put("keyId", keyId);
         return response;
-        
+
     }
 
-    public Map<String, Object> verifyPayment(String razorpayOrderId, String razorpayPaymentId, String razorpaySignature){
-        String data= razorpayOrderId+"|"+razorpayPaymentId;
+    public Map<String, Object> verifyPayment(String razorpayOrderId, String razorpayPaymentId, String razorpaySignature) {
+        String data = razorpayOrderId + "|" + razorpayPaymentId;
         try {
-            String generatedSignature=hmac(data,keySecret);
+            String generatedSignature = hmac(data, keySecret);
 
-            Payment payment=paymentRepository.findByPaymentGatewayOrderId(razorpayOrderId).orElseThrow(()-> new RuntimeException("Payment With Order Id :"+razorpayOrderId+" not found."));
-            if(!generatedSignature.equals(razorpaySignature)){
+            Payment payment = paymentRepository.findByPaymentGatewayOrderId(razorpayOrderId).orElseThrow(() -> new RuntimeException("Payment With Order Id :" + razorpayOrderId + " not found."));
+            if (!generatedSignature.equals(razorpaySignature)) {
                 payment.setPaymentStatus(PaymentStatus.FAILED);
                 paymentRepository.save(payment);
                 return Map.of(
-                        "status",  "FAILED",
+                        "status", "FAILED",
                         "message", "Invalid signature — payment rejected"
                 );
             }
@@ -107,9 +109,9 @@ public class PaymentService {
             payment.setPaymentGatewayPaymentId(razorpayPaymentId);
             paymentRepository.save(payment);
 
-            return  Map.of("status","PAID",
-                       "message","Payment Successful",
-                        "Payment Id" ,razorpayPaymentId);
+            return Map.of("status", "PAID",
+                    "message", "Payment Successful",
+                    "Payment Id", razorpayPaymentId);
 
         } catch (Exception e) {
             throw new RuntimeException(e);
@@ -119,7 +121,66 @@ public class PaymentService {
     }
 
 
-    // ─────────────────────────────────────────────
+    public Map<String, Object> verifyPaymentWebhook(String payload, String razorpaySignature) {
+
+        JsonNode root=objectMapper.readTree(payload);
+        String event  = root.get("event").asText();
+        JsonNode payment = root.at("/payload/payment/entity");
+
+
+       final  String razorpayPaymentId = payment.get("id").asText();
+       final  String razorpayOrderId   = payment.get("order_id").asText();
+       final  String method    = payment.get("method").asText();
+       final  String status    = payment.get("status").asText();
+
+        String paymentMethod = mapMethod(method);
+        String data = razorpayOrderId + "|" + razorpayPaymentId;
+        try {
+
+            if (paymentRepository.existsByPaymentGatewayPaymentId(razorpayPaymentId)) {
+                return Map.of(
+                        "message", "Duplicate webhook ignored for payment:"+razorpayPaymentId
+                );
+            }
+
+
+//            String generatedSignature = hmac(data, keySecret);
+
+            Payment paymentInRepo = paymentRepository.findByPaymentGatewayOrderId(razorpayOrderId).orElseThrow(() -> new RuntimeException("Payment With Order Id :" + razorpayOrderId + " not found."));
+            if (status.equals("failed")) {
+                final  String error     = payment.get("error_description").asText();
+
+                paymentInRepo.setPaymentMethod(PaymentMethod.valueOf(paymentMethod));
+                paymentInRepo.setPaymentGatewayPaymentId(razorpayPaymentId);
+                paymentInRepo.setPaymentStatus(PaymentStatus.FAILED);
+                paymentRepository.save(paymentInRepo);
+                return Map.of(
+                        "status", "FAILED",
+                        "message", error
+                );
+            }
+
+            System.out.println("RAW METHOD FROM RAZORPAY: '" + paymentMethod + "'");
+
+            paymentInRepo.setPaymentStatus(PaymentStatus.PAID);
+            paymentInRepo.setPaymentMethod(PaymentMethod.valueOf(paymentMethod));
+            paymentInRepo.setPaymentGatewayPaymentId(razorpayPaymentId);
+            paymentRepository.save(paymentInRepo);
+
+            return Map.of("status", status,
+                    "message", "Payment Successful",
+                    "Payment Id", razorpayPaymentId);
+
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+
+    }
+
+
+
+    // ─────────────────────────────────────────────b
     // HMAC helper — generates the signature
     // ─────────────────────────────────────────────
     private String hmac(String data, String secret) throws Exception {
@@ -131,27 +192,26 @@ public class PaymentService {
         return sb.toString();
     }
 
-    private String mapMethod(String method){
+    private String mapMethod(String method) {
         if (method == null) return "MOCK";
         return switch (method.toLowerCase().trim()) {
-            case "upi"        -> "UPI";
-            case "card"       -> "CREDIT_CARD";
-            case "netbanking" ->"NET_BANKING";  // ← handles both
-            default           -> "MOCK";
+            case "upi" -> "UPI";
+            case "card" -> "CREDIT_CARD";
+            case "netbanking" -> "NET_BANKING";  // ← handles both
+            default -> "MOCK";
         };
     }
 
 
-
-    public List<Payment> getAllPaymentsForPassenger(Long passengerId){
-       return paymentRepository.getPaymentDetailsFromPassengerId(passengerId);
+    public List<Payment> getAllPaymentsForPassenger(Long passengerId) {
+        return paymentRepository.getPaymentDetailsFromPassengerId(passengerId);
     }
 
-    public List<Payment> getAllPaymentsForDriver(Long driverId){
+    public List<Payment> getAllPaymentsForDriver(Long driverId) {
         return paymentRepository.getPaymentDetailsFromDriverId(driverId);
     }
 
-    public List<Payment> getAllPayments(){
+    public List<Payment> getAllPayments() {
         return paymentRepository.findAll();
     }
 

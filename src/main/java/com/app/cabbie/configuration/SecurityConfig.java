@@ -41,6 +41,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth->auth
                         .requestMatchers("/api/users/register").permitAll()
                         .requestMatchers("/api/users/login").permitAll()
+                        .requestMatchers("/api/payments/verify-payment-webhook").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasAnyRole("ADMIN", "PASSENGER", "DRIVER")
                         .requestMatchers("/api/users/logout").permitAll()
@@ -64,7 +65,7 @@ public class SecurityConfig {
 
         ));
         config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization","Content-Type","Accept"));
+        config.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","X-Razorpay-Signature"));
         config.setAllowCredentials(true);
         config.setMaxAge(3600L);
 

@@ -3,6 +3,8 @@ package com.app.cabbie.controller;
 import com.app.cabbie.dto.PaymentDetailsDTO;
 import com.app.cabbie.model.Payment;
 import com.app.cabbie.service.PaymentService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +21,9 @@ public class PaymentsController {
 
     @Autowired
     PaymentService paymentService;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
 
     @PostMapping("/pay")
     @PreAuthorize("hasRole('PASSENGER')")
@@ -44,6 +49,19 @@ public class PaymentsController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e);
         }
     }
+
+    @PostMapping("/verify-payment-webhook")
+    public ResponseEntity<Object> verifyPaymentHook(@RequestBody(required = false) String payload, @RequestHeader(value = "X-Razorpay-Signature", required = false) String signature){
+        try {
+
+            Map<String, Object> response=paymentService.verifyPaymentWebhook(payload,signature);
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(e);
+        }
+    }
+
 
 
     @GetMapping("/user/{passengerId}")

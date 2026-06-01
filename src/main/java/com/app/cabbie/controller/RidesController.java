@@ -2,8 +2,11 @@ package com.app.cabbie.controller;
 
 import com.app.cabbie.dto.RideRequestDTO;
 import com.app.cabbie.enums.RideStatus;
+import com.app.cabbie.model.Driver;
 import com.app.cabbie.model.Ride;
+import com.app.cabbie.repository.DriverRepository;
 import com.app.cabbie.service.RideService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,11 +21,11 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/api/rides")
+@RequiredArgsConstructor
 public class RidesController {
 
-
-    @Autowired
-    RideService rideService;
+    private final RideService rideService;
+    private final DriverRepository driverRepository;
 
 //    Passenger
 //    =====================================================================
@@ -31,9 +34,15 @@ public class RidesController {
     // Returns the created ride object with calculated fare and REQUESTED status.
     @PostMapping("/request")
     @PreAuthorize("hasAnyRole('PASSENGER','ADMIN')")
-    public ResponseEntity<Ride> requestRide(@RequestBody RideRequestDTO rideRequestDTO){
-        Ride ride=rideService.requestRide(rideRequestDTO);
-        return ResponseEntity.ok(ride);
+    public ResponseEntity<?> requestRide(@RequestBody RideRequestDTO rideRequestDTO){
+        try {
+            Ride ride=rideService.requestRide(rideRequestDTO);
+            
+            return ResponseEntity.ok(ride);
+        }catch(Exception e){
+            return ResponseEntity.internalServerError().body("Exception While Requesting a Ride :"+e);
+        }
+
     }
 
 
@@ -51,7 +60,7 @@ public class RidesController {
     // Driver's status also changes to BUSY indicating they are engaged in a ride.
     @PutMapping("/{id}/assign")
     @PreAuthorize("hasRole('DRIVER')")
-    public ResponseEntity<Ride> acceptAssigedRideRequest(@PathVariable Long id, Authentication authentication){
+    public ResponseEntity<Ride> acceptAssignedRideRequest(@PathVariable Long id, Authentication authentication){
 
         Ride ride=rideService.acceptRideRequest(id, authentication.getName().trim());
         return ResponseEntity.ok(ride);
@@ -93,6 +102,14 @@ public class RidesController {
     @PreAuthorize("#userId==principal.id && hasAnyRole('PASSENGER','ADMIN')")
     public ResponseEntity<List<Ride>> getRideDetailsByUserId(@PathVariable Long userId){
         List<Ride> rides=rideService.getRidesDetailsByUserId(userId);
+        return ResponseEntity.ok(rides);
+    }
+
+    @GetMapping("/driver/{userId}")
+    @PreAuthorize("#userId==principal.id && hasAnyRole('DRIVER','ADMIN')")
+    public ResponseEntity<List<Ride>> getRideDetailsByDriverUserId(@PathVariable Long userId){
+        Driver driver=driverRepository.findEntityByUserId(userId).orElseThrow(()-> new RuntimeException("Driver Not found with user Id:"+ userId));
+        List<Ride> rides=rideService.getRidesDetailsByDriverId(driver.getId());
         return ResponseEntity.ok(rides);
     }
 
