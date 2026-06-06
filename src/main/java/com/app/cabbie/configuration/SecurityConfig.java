@@ -42,6 +42,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/register").permitAll()
                         .requestMatchers("/api/users/login").permitAll()
                         .requestMatchers("/api/payments/verify-payment-webhook").permitAll()
+                        .requestMatchers("/ws/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/**").hasAnyRole("ADMIN", "PASSENGER", "DRIVER")
                         .requestMatchers("/api/users/logout").permitAll()
@@ -65,8 +66,11 @@ public class SecurityConfig {
 
         ));
         config.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","X-Razorpay-Signature"));
+        config.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","X-Razorpay-Signature",
+                "X-Requested-With"  // ← SockJS sends this
+                ));
         config.setAllowCredentials(true);
+        config.setExposedHeaders(List.of("*"));
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

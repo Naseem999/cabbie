@@ -1,5 +1,6 @@
 package com.app.cabbie.service;
 
+import com.app.cabbie.dto.KafkaEventDTO;
 import com.app.cabbie.dto.NotificationDTO;
 import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
@@ -18,25 +19,23 @@ public class NotificationPersistenceConsumerService {
     private final NotificationService notificationService;
 
     @KafkaListener(topics = "ride-notifications", groupId = "notification-persistence")
-    public void saveNotifications(Object payload){
-        if(payload instanceof  NotificationDTO notificationDTO) {
-            notificationService.saveNotification(notificationDTO);
-        }
+    public void saveNotifications(KafkaEventDTO dto){
+        NotificationDTO notificationDTO=NotificationDTO.builder()
+                .userId(dto.getUserId())
+                .title(dto.getTitle())
+                .message(dto.getMessage())
+                .build();
+        notificationService.saveNotification(notificationDTO);
     }
 
     @KafkaListener(topics = "ride-request", groupId = "rideRequest-persistence")
-    public void saveRideRequestNotifications(ConsumerRecord<String, Object> record){
-       Object payload=record.value();
-        HashMap dataMap = (HashMap) payload;
-        LinkedHashMap notificationLHM=(LinkedHashMap)dataMap.get("dto");
-
+    public void saveRideRequestNotifications(KafkaEventDTO dto){
         NotificationDTO notificationDTO=NotificationDTO.builder()
-                        .userId(Long.valueOf(notificationLHM.get("userId").toString()))
-                .title(String.valueOf(notificationLHM.get("title")))
-                .message(String.valueOf(notificationLHM.get("message")))
+                .userId(dto.getUserId())
+                .title(dto.getTitle())
+                .message(dto.getMessage())
                 .build();
-
-            notificationService.saveNotification(notificationDTO);
+        notificationService.saveNotification(notificationDTO);
     }
 
 }

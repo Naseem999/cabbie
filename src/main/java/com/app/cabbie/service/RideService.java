@@ -1,7 +1,7 @@
 package com.app.cabbie.service;
 
+import com.app.cabbie.dto.KafkaEventDTO;
 import com.app.cabbie.dto.LocationDTO;
-import com.app.cabbie.dto.NotificationDTO;
 import com.app.cabbie.dto.RideRequestDTO;
 import com.app.cabbie.enums.DriverStatus;
 import com.app.cabbie.enums.RideStatus;
@@ -85,7 +85,15 @@ public class RideService {
                     .build();
             Ride savedRide= ridesRepository.save(newRide);
 
-            producerService.sendRideRequestNotification(savedRide.getId(),savedRide.getPassengerId().getId(), savedRide.getPickupLocation());
+            KafkaEventDTO event=KafkaEventDTO.builder()
+                    .userId(savedRide.getPassengerId().getId())
+                    .userEmail(savedRide.getPassengerId().getEmail())
+                    .rideId(savedRide.getId())
+                    .title("Ride Requested!")
+                    .message("Your ride has been requested from " + savedRide.getPickupLocation() + ". Finding driver...")
+                    .build();
+
+            producerService.sendRideRequestNotification(event);
 
             return savedRide;
         } catch (Exception e) {
@@ -166,18 +174,20 @@ public class RideService {
         ride.setRideStatus(RideStatus.ACCEPTED);
         driver.setDriverStatus(DriverStatus.BUSY);
 
+       Ride savedRide= ridesRepository.save(ride);
 
         driverRepository.save(driver);
 
-        NotificationDTO notificationDTO = NotificationDTO.builder()
+        KafkaEventDTO event=KafkaEventDTO.builder()
                 .title("Ride Accepted!")
                 .message("Driver Accepted The Ride.")
-                .userId(ride.getPassengerId().getId())
+                .userId(savedRide.getPassengerId().getId())
+                .userEmail(savedRide.getPassengerId().getEmail())
                 .build();
 
-        producerService.sendRideNotification(notificationDTO);
+        producerService.sendRideNotification(event);
 
-        return ridesRepository.save(ride);
+        return savedRide;
     }
 
     /**
@@ -193,21 +203,25 @@ public class RideService {
         // Handle different ride status transitions with appropriate notifications
         switch (savedRide.getRideStatus()) {
             case IN_PROGRESS:
-                NotificationDTO startedNotification = NotificationDTO.builder()
+                KafkaEventDTO startedNotificationEvent=KafkaEventDTO.builder()
                         .title("Ride Started!")
                         .message("Your ride has started.")
                         .userId(ride.getPassengerId().getId())
+                        .userEmail(ride.getPassengerId().getEmail())
                         .build();
-                producerService.sendRideNotification(startedNotification);
+
+                producerService.sendRideNotification(startedNotificationEvent);
                 break;
 
             case COMPLETED:
-                NotificationDTO completedNotification = NotificationDTO.builder()
+                KafkaEventDTO completedNotificationEvent=KafkaEventDTO.builder()
                         .title("Ride Completed!")
                         .message("Your ride has been completed. Please rate your driver.")
                         .userId(ride.getPassengerId().getId())
+                        .userEmail(ride.getPassengerId().getEmail())
                         .build();
-                producerService.sendRideNotification(completedNotification);
+
+                producerService.sendRideNotification(completedNotificationEvent);
                 break;
         }
         return savedRide;
@@ -224,12 +238,14 @@ public class RideService {
         Ride savedRide= ridesRepository.save(ride);
 
         if(savedRide.getRideStatus().equals(RideStatus.CANCELED)){
-            NotificationDTO canceledRideNotification = NotificationDTO.builder()
+            KafkaEventDTO canceledRideNotificationEvent=KafkaEventDTO.builder()
                     .title("Ride Canceled!")
                     .message("Your ride has been canceled.")
                     .userId(ride.getPassengerId().getId())
+                    .userEmail(ride.getPassengerId().getEmail())
                     .build();
-            producerService.sendRideNotification(canceledRideNotification);
+
+            producerService.sendRideNotification(canceledRideNotificationEvent);
         }
 
         return savedRide;

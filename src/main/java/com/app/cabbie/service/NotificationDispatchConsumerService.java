@@ -1,16 +1,13 @@
 package com.app.cabbie.service;
 
+import com.app.cabbie.dto.KafkaEventDTO;
 import com.app.cabbie.dto.NotificationDTO;
 import com.app.cabbie.model.Driver;
 import lombok.RequiredArgsConstructor;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -18,41 +15,40 @@ public class NotificationDispatchConsumerService {
 
     private final RideService rideService;
     private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final SimpMessagingTemplate messagingTemplate;
+
 
 
     @KafkaListener(topics = "ride-notifications", groupId = "notification-dispatch")
-    public void dispatchNotifications(Object payload){
-        NotificationDTO notificationDTO=(NotificationDTO) payload;
-            System.out.println(notificationDTO.toString());
-
+    public void dispatchNotifications(KafkaEventDTO dto){
+        messagingTemplate.convertAndSendToUser(dto.getUserEmail(),"/queue/notifications",dto);
     }
 
 
     @KafkaListener(topics = "ride-request", groupId = "rideRequest-dispatch")
-    public void saveRideRequestNotifications(ConsumerRecord<String, Object> record){
-        Object payload=record.value();
-        HashMap map=(HashMap)payload;
-//        NotificationDTO notificationDTO=(NotificationDTO)map.get("dto");
-
-        LinkedHashMap notificationLHM=(LinkedHashMap)map.get("dto");
+    public void saveRideRequestNotifications(KafkaEventDTO dto){
 
         NotificationDTO notificationDTO=NotificationDTO.builder()
-                .userId(Long.valueOf(notificationLHM.get("userId").toString()))
-                .title(String.valueOf(notificationLHM.get("title")))
-                .message(String.valueOf(notificationLHM.get("message")))
+                .userId(dto.getUserId())
+                .title(dto.getTitle())
+                .message(dto.getMessage())
                 .build();
 
-
-            Long rideId=Long.valueOf(map.get("rideId").toString());
+            Long rideId=dto.getRideId();
             Driver driver= rideService.assignRideToNearestDriver(rideId);
-            rideService.acceptRideRequest(rideId,driver.getUser().getEmail());
-            NotificationDTO notificationDTO1 = NotificationDTO.builder()
+//            rideService.acceptRideRequest(rideId,driver.getUser().getEmail());
+
+            KafkaEventDTO newRideEvent= KafkaEventDTO.builder()
                     .userId(driver.getUser().getId())
+                    .userEmail(driver.getUser().getEmail())
                     .title("New Ride!")
                     .message("You have a new Ride.")
                     .build();
 
-           kafkaTemplate.send("ride-notifications",notificationDTO1);
+
+        messagingTemplate.convertAndSendToUser(dto.getUserEmail(),"/queue/notifications",dto);
+
+        kafkaTemplate.send("ride-notifications",newRideEvent);
 
 
     }

@@ -26,6 +26,13 @@ public class JWTFilter extends OncePerRequestFilter {
     @Autowired
     UserDetailsService userDetailsService;
 
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
+        String path = request.getServletPath();
+        return path.startsWith("/ws"); // ← skip JWT filter for WebSocket paths
+    }
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
