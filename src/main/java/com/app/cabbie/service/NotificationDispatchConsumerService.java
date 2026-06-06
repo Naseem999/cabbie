@@ -19,12 +19,16 @@ public class NotificationDispatchConsumerService {
 
 
 
+    // Listen for ride events and forward them to the specific connected WebSocket user.
+    // Sends the KafkaEventDTO payload to `/user/{email}/queue/notifications` so the client receives it.
     @KafkaListener(topics = "ride-notifications", groupId = "notification-dispatch")
     public void dispatchNotifications(KafkaEventDTO dto){
         messagingTemplate.convertAndSendToUser(dto.getUserEmail(),"/queue/notifications",dto);
     }
 
 
+    // Handle incoming ride request events: assign a driver and notify both passenger and driver.
+    // Assigns nearest driver (via RideService), pushes a driver-targeted Kafka event, and echoes passenger notification via WebSocket.
     @KafkaListener(topics = "ride-request", groupId = "rideRequest-dispatch")
     public void saveRideRequestNotifications(KafkaEventDTO dto){
 

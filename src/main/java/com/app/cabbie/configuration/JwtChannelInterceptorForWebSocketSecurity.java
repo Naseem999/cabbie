@@ -24,6 +24,8 @@ private final JWTService jwtService;
 private final UserDetailsService userDetailsService;
 
     @Override
+    // Check STOMP CONNECT frames for `Authorization: Bearer <token>` and validate the JWT.
+    // If valid, attach an Authentication principal to the WebSocket session so user destinations work.
     public @Nullable Message<?> preSend(Message<?> message, MessageChannel channel) {
         StompHeaderAccessor accessor= MessageHeaderAccessor.getAccessor(message,StompHeaderAccessor.class);
 
