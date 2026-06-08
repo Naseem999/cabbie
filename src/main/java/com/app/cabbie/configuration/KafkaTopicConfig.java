@@ -22,9 +22,10 @@ import java.util.Map;
 @EnableKafka
 public class KafkaTopicConfig {
 
-    @Bean
+
     // Producer factory configured to serialize message values as JSON using Jackson.
     // Uses localhost:9092 as the bootstrap server in developer environments.
+    @Bean
     public ProducerFactory<String, Object> producerFactory() {
         Map<String, Object> config = new HashMap<>();
         config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
@@ -34,17 +35,19 @@ public class KafkaTopicConfig {
     }
 
 
-    @Bean
+
     // Provides a KafkaTemplate bean for sending messages to configured topics.
     // Key type is String and value type is JSON-serialized objects.
+    @Bean
     public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
     }
 
 
-    @Bean
+
     // Consumer factory configured to deserialize JSON values into KafkaEventDTO instances.
     // Group id is `cab-group` used by default consumers in the application.
+    @Bean
     public ConsumerFactory<String, Object> consumerFactory() {
         Map<String, Object> config = new HashMap<>();
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
@@ -57,9 +60,10 @@ public class KafkaTopicConfig {
         return new DefaultKafkaConsumerFactory<>(config);
     }
 
-    @Bean
+
     // Kafka listener container factory wired to the consumerFactory.
     // Used by `@KafkaListener` methods to receive deserialized events.
+    @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
@@ -72,12 +76,14 @@ public class KafkaTopicConfig {
     @Bean
     public NewTopic ridesTopic(){
         // Create topic used to broadcast user-facing ride notifications.
+        // This topic is consumed by notification dispatchers and WebSocket relays.
         return new NewTopic("ride-notifications",1, (short) 1);
     }
 
     @Bean
     public NewTopic ridesRequestTopic(){
         // Create topic used to publish incoming ride request events for driver assignment.
+        // Consumers read from this topic to perform driver selection and dispatch logic.
         return new NewTopic("ride-request",1, (short) 1);
     }
 
