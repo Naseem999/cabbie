@@ -1127,16 +1127,6 @@ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software...
 ```
 
----
-
-## 📞 Contact & Support
-
-- **Report Issues**: [GitHub Issues](https://github.com/Naseem999/cabbie/issues)
-- **Email**: naseem@example.com
-- **Discord**: Join our community server
-- **Documentation**: [Wiki](https://github.com/Naseem999/cabbie/wiki)
-
----
 
 ## 🎓 Learning Resources
 
