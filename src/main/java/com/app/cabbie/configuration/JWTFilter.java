@@ -1,3 +1,6 @@
+// Purpose: JWT security filter that intercepts HTTP requests to validate Bearer tokens and set authentication context.
+// Notes: Skips /ws (WebSocket) and SSE subscription paths; uses JWTService to extract user claims from JWT.
+
 package com.app.cabbie.configuration;
 
 import com.app.cabbie.service.JWTService;
@@ -28,12 +31,16 @@ public class JWTFilter extends OncePerRequestFilter {
 
 
     @Override
+    // Purpose: Determines if a request should bypass JWT filter (e.g., WebSocket and SSE connections).
+    // Behavior: Returns true for /ws/* and SSE subscribe paths; delegates other requests to the filter.
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getServletPath();
-        return path.startsWith("/ws"); // ← skip JWT filter for WebSocket paths
+        return path.startsWith("/ws") || path.contains("/api/user/notifications/subscribe") ; // ← skip JWT filter for WebSocket paths
     }
 
     @Override
+    // Purpose: Validates JWT from Authorization header and sets Spring Security authentication context if valid.
+    // Behavior: Extracts token, verifies signature/expiry, loads UserDetails, creates auth token with authorities; logs auth info.
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
         final String authHeader=request.getHeader("Authorization");

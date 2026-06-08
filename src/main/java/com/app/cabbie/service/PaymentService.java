@@ -1,5 +1,6 @@
 package com.app.cabbie.service;
 
+import com.app.cabbie.dto.KafkaEventDTO;
 import com.app.cabbie.enums.PaymentMethod;
 import com.app.cabbie.enums.PaymentStatus;
 import com.app.cabbie.model.Payment;
@@ -9,6 +10,7 @@ import com.app.cabbie.repository.RidesRepository;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
+import lombok.RequiredArgsConstructor;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,6 +30,7 @@ import java.util.Map;
  * Uses Razorpay for order creation and signature verification.
  */
 @Service
+@RequiredArgsConstructor
 public class PaymentService {
 
     @Value("${razorpay.key.id}")
@@ -44,6 +47,8 @@ public class PaymentService {
 
     @Autowired
     PaymentRepository paymentRepository;
+
+    private final KafkaProducerService producerService;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -84,11 +89,23 @@ public class PaymentService {
             Payment payment = paymentRepository.findByPaymentGatewayOrderId(razorpayOrderId).orElseThrow(() -> new RuntimeException("Payment With Order Id :" + razorpayOrderId + " not found."));
             if (!generatedSignature.equals(razorpaySignature)) {
                 payment.setPaymentStatus(PaymentStatus.FAILED);
-                paymentRepository.save(payment);
+                Payment failedPayment=paymentRepository.save(payment);
+
+                KafkaEventDTO paymentFailedPassengerNotificationEvent=KafkaEventDTO.builder()
+                        .title("Payment Failed!")
+                        .message("Payment of Rs."+failedPayment.getRideId().getFare()+" Failed.")
+                        .userId(failedPayment.getRideId().getPassengerId().getId())
+                        .userEmail(failedPayment.getRideId().getPassengerId().getEmail())
+                        .build();
+                producerService.sendRideNotification(paymentFailedPassengerNotificationEvent);
+
                 return Map.of(
                         "status", "FAILED",
                         "message", "Invalid signature — payment rejected"
                 );
+
+
+
             }
 
             // Fetch payment details from Razorpay
@@ -107,7 +124,24 @@ public class PaymentService {
             payment.setPaymentStatus(PaymentStatus.PAID);
             payment.setPaymentMethod(PaymentMethod.valueOf(paymentMethod));
             payment.setPaymentGatewayPaymentId(razorpayPaymentId);
-            paymentRepository.save(payment);
+            Payment savedPayment= paymentRepository.save(payment);
+
+            KafkaEventDTO paymentDonePassengerNotificationEvent=KafkaEventDTO.builder()
+                    .title("Payment Successful!")
+                    .message("Payment of Rs."+savedPayment.getRideId().getFare()+" done for ride.")
+                    .userId(savedPayment.getRideId().getPassengerId().getId())
+                    .userEmail(savedPayment.getRideId().getPassengerId().getEmail())
+                    .build();
+            producerService.sendRideNotification(paymentDonePassengerNotificationEvent);
+
+            KafkaEventDTO paymentDoneDriverNotificationEvent=KafkaEventDTO.builder()
+                    .title("Payment Received!")
+                    .message("Payment of Rs."+savedPayment.getRideId().getFare()+" received.")
+                    .userId(savedPayment.getRideId().getDriverId().getUser().getId())
+                    .userEmail(savedPayment.getRideId().getDriverId().getUser().getEmail())
+                    .build();
+
+            producerService.sendRideNotification(paymentDoneDriverNotificationEvent);
 
             return Map.of("status", "PAID",
                     "message", "Payment Successful",
@@ -121,6 +155,8 @@ public class PaymentService {
     }
 
 
+    // Purpose: Process Razorpay webhook payload to update payment status without client-side reverification.
+    // Behavior: Parses JSON payload, extracts payment details, prevents duplicate processing, updates DB, sends notifications.
     public Map<String, Object> verifyPaymentWebhook(String payload, String razorpaySignature) {
 
         JsonNode root=objectMapper.readTree(payload);
@@ -153,7 +189,15 @@ public class PaymentService {
                 paymentInRepo.setPaymentMethod(PaymentMethod.valueOf(paymentMethod));
                 paymentInRepo.setPaymentGatewayPaymentId(razorpayPaymentId);
                 paymentInRepo.setPaymentStatus(PaymentStatus.FAILED);
-                paymentRepository.save(paymentInRepo);
+                Payment failedPayment=paymentRepository.save(paymentInRepo);
+
+                KafkaEventDTO paymentFailedPassengerNotificationEvent=KafkaEventDTO.builder()
+                        .title("Payment Failed!")
+                        .message("Payment of Rs."+failedPayment.getRideId().getFare()+" Failed.")
+                        .userId(failedPayment.getRideId().getPassengerId().getId())
+                        .userEmail(failedPayment.getRideId().getPassengerId().getEmail())
+                        .build();
+                producerService.sendRideNotification(paymentFailedPassengerNotificationEvent);
                 return Map.of(
                         "status", "FAILED",
                         "message", error
@@ -165,7 +209,25 @@ public class PaymentService {
             paymentInRepo.setPaymentStatus(PaymentStatus.PAID);
             paymentInRepo.setPaymentMethod(PaymentMethod.valueOf(paymentMethod));
             paymentInRepo.setPaymentGatewayPaymentId(razorpayPaymentId);
-            paymentRepository.save(paymentInRepo);
+            Payment savedPayment= paymentRepository.save(paymentInRepo);
+
+
+            KafkaEventDTO paymentDonePassengerNotificationEvent=KafkaEventDTO.builder()
+                    .title("Payment Successful!")
+                    .message("Payment of Rs."+savedPayment.getRideId().getFare()+" done for ride.")
+                    .userId(savedPayment.getRideId().getPassengerId().getId())
+                    .userEmail(savedPayment.getRideId().getPassengerId().getEmail())
+                    .build();
+
+            KafkaEventDTO paymentDoneDriverNotificationEvent=KafkaEventDTO.builder()
+                    .title("Payment Received!")
+                    .message("Payment of Rs."+savedPayment.getRideId().getFare()+" received.")
+                    .userId(savedPayment.getRideId().getDriverId().getUser().getId())
+                    .userEmail(savedPayment.getRideId().getDriverId().getUser().getEmail())
+                    .build();
+
+            producerService.sendRideNotification(paymentDonePassengerNotificationEvent);
+            producerService.sendRideNotification(paymentDoneDriverNotificationEvent);
 
             return Map.of("status", status,
                     "message", "Payment Successful",
@@ -183,6 +245,8 @@ public class PaymentService {
     // ─────────────────────────────────────────────b
     // HMAC helper — generates the signature
     // ─────────────────────────────────────────────
+    // Purpose: Generates HmacSHA256 signature for payment verification using order and payment IDs.
+    // Behavior: Computes MAC with secret key, returns hexadecimal string for comparison with Razorpay signature.
     private String hmac(String data, String secret) throws Exception {
         Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(secret.getBytes(), "HmacSHA256"));
@@ -192,6 +256,8 @@ public class PaymentService {
         return sb.toString();
     }
 
+    // Purpose: Maps Razorpay payment method strings to internal PaymentMethod enum values.
+    // Behavior: Converts 'upi' -> UPI, 'card' -> CREDIT_CARD, 'netbanking' -> NET_BANKING; defaults to MOCK.
     private String mapMethod(String method) {
         if (method == null) return "MOCK";
         return switch (method.toLowerCase().trim()) {
@@ -203,14 +269,20 @@ public class PaymentService {
     }
 
 
+    // Purpose: Retrieves all payment records associated with a specific passenger (user) from the database.
+    // Behavior: Calls repository method using passenger ID; returns List<Payment> for payment history dashboard.
     public List<Payment> getAllPaymentsForPassenger(Long passengerId) {
         return paymentRepository.getPaymentDetailsFromPassengerId(passengerId);
     }
 
+    // Purpose: Retrieves all payment records for a specific driver by driver ID.
+    // Behavior: Queries repository for driver earnings/payment history; returns List<Payment> for driver dashboard/reporting.
     public List<Payment> getAllPaymentsForDriver(Long driverId) {
         return paymentRepository.getPaymentDetailsFromDriverId(driverId);
     }
 
+    // Purpose: Retrieves all payment records in the system (admin-only endpoint).
+    // Behavior: Queries payment repository without filters; returns complete list for admin analytics and audits.
     public List<Payment> getAllPayments() {
         return paymentRepository.findAll();
     }

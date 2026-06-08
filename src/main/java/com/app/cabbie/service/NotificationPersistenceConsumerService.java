@@ -2,15 +2,9 @@ package com.app.cabbie.service;
 
 import com.app.cabbie.dto.KafkaEventDTO;
 import com.app.cabbie.dto.NotificationDTO;
-import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor

@@ -3,6 +3,7 @@ package com.app.cabbie.model;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -10,6 +11,10 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "reviews")
+@Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class Review {
 
     @Id

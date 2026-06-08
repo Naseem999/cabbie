@@ -179,8 +179,8 @@ public class RideService {
         driverRepository.save(driver);
 
         KafkaEventDTO event=KafkaEventDTO.builder()
-                .title("Ride Accepted!")
-                .message("Driver Accepted The Ride.")
+                .title("Caption : "+savedRide.getDriverId().getUser().getName() +" is on the way !")
+                .message("Driver Assigned for the ride.")
                 .userId(savedRide.getPassengerId().getId())
                 .userEmail(savedRide.getPassengerId().getEmail())
                 .build();
@@ -216,10 +216,14 @@ public class RideService {
             case COMPLETED:
                 KafkaEventDTO completedNotificationEvent=KafkaEventDTO.builder()
                         .title("Ride Completed!")
-                        .message("Your ride has been completed. Please rate your driver.")
+                        .message("Your ride has been completed. Fare for the ride is Rs."+ride.getFare()+".")
                         .userId(ride.getPassengerId().getId())
                         .userEmail(ride.getPassengerId().getEmail())
                         .build();
+
+                Driver driver = ride.getDriverId();
+                driver.setDriverStatus(DriverStatus.AVAILABLE);
+                driverRepository.save(driver);
 
                 producerService.sendRideNotification(completedNotificationEvent);
                 break;

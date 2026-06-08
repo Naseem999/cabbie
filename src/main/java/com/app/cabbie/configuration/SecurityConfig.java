@@ -1,3 +1,6 @@
+// Purpose: Central Spring Security configuration for authentication, authorization, CORS, and JWT filter chain.
+// Notes: Enables method-level security (@PreAuthorize); permits public endpoints for auth/SSE; STATELESS session for API.
+
 package com.app.cabbie.configuration;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +37,8 @@ public class SecurityConfig {
 
 
     @Bean
+    // Purpose: Builds the Spring Security filter chain with CORS, CSRF, authorization rules, and JWT authentication.
+    // Behavior: Permits public endpoints (/register, /login, /ws, /api/user/notifications/subscribe); enforces STATELESS session; applies JWTFilter.
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception{
       return   http
               .cors(cors -> cors.configurationSource(corsConfigurationSource())) // ← add this
@@ -41,6 +46,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth->auth
                         .requestMatchers("/api/users/register").permitAll()
                         .requestMatchers("/api/users/login").permitAll()
+                        .requestMatchers("/api/user/notifications/subscribe").permitAll()
                         .requestMatchers("/api/payments/verify-payment-webhook").permitAll()
                         .requestMatchers("/ws/**").permitAll()
                         .requestMatchers(HttpMethod.DELETE, "/api/users/**").hasRole("ADMIN")
@@ -56,6 +62,8 @@ public class SecurityConfig {
 
 
     @Bean
+    // Purpose: Configures Cross-Origin Resource Sharing (CORS) to allow requests from frontend clients and SockJS browsers.
+    // Behavior: Permits localhost:5500 and :8080, allows standard HTTP methods, credentials, and custom headers for Razorpay/SockJS.
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
 
